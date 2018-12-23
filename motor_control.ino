@@ -7,7 +7,7 @@
 #define LOG 1
 
 #if LOG == 1
-#define LOG_SPEED Serial.print("SPEED: "); Serial.print(speed); Serial.println('%');
+#define LOG_SPEED Serial.print("SPEED: "); Serial.print(current_speed); Serial.println('%');
 #else
 #define LOG_SPEED // Nothing
 #endif
@@ -17,9 +17,9 @@
 
 // Input =====================================================================
 
-#define FORWARD_PRESSED (digitalRead(5) == LOW)
+#define FORWARD_SWITCH_PRESSED (digitalRead(5) == LOW)
 #define FORWARD_DIR(value) (value)
-#define BACKWARD_PRESSED (digitalRead(6) == LOW)
+#define BACKWARD_SWITCH_PRESSED (digitalRead(6) == LOW)
 #define BACKWARD_DIR(value) -(value)
 
 // Output ====================================================================
@@ -87,7 +87,7 @@ void setup() {
     Serial.begin(9600);
 
     // Print Initial Speed
-    print_speed();
+    LOG_SPEED;
 #endif
 }
 
@@ -95,14 +95,14 @@ void loop() {
 
     // Update Target Speed By Checking Switches
     int speed_step;
-    bool foward = FOWARD_SWITCH_PRESSED;
+    bool forward = FORWARD_SWITCH_PRESSED;
     bool backward = BACKWARD_SWITCH_PRESSED;
-    if (foward && !backward) {
+    if (forward && !backward) {
         target_speed = FORWARD_DIR(100);
         speed_step = ACCELERATE_STEP;
 #if LOG == 1
         // Print FORWARD if not done already
-        if (!foward_printed) {
+        if (!forward_printed) {
             Serial.println("FORWARD PRESSED");
             forward_printed = true;
             backward_printed = false;
@@ -158,7 +158,7 @@ void loop() {
         abs_speed = -current_speed;
         digitalWrite(DIRECTION_PIN, NEGATIVE_DIR);
     }
-    dac1.setVoltage(MPC4725_MAX * abs_speed / 100, false);
+    dac1.setVoltage(MCP4725_MAX * abs_speed / 100, false);
 
     // Sleep for a While
     delay(TICK);
