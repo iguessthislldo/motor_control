@@ -1,3 +1,5 @@
+// Macros ====================================================================
+
 /*
  * Serial Logging Control
  * Should be disabled when this is uploaded for the last time
@@ -7,26 +9,41 @@
 #define LOG 1
 
 #if LOG == 1
-#define LOG_SPEED Serial.print("SPEED: "); Serial.print(current_speed); Serial.println('%');
+#define LOG_SPEED \
+    Serial.print("SPEED: "); Serial.print(current_speed); Serial.println('%');
 #else
 #define LOG_SPEED // Nothing
 #endif
 
+/*
+ * Set Motor Driver
+ */
+#define L298N 0
+#define MCP4725 1
+#define DRIVER MCP4725
+//#define DRIVER L298N
+
+#if DRIVER == MCP4725
 #include <Wire.h>
 #include <Adafruit_MCP4725.h>
+#endif
 
 // Input =====================================================================
 
-#define FORWARD_SWITCH_PRESSED (digitalRead(5) == LOW)
+#define FORWARD_SWITCH_PRESSED (digitalRead(5) == HIGH)
 #define FORWARD_DIR(value) (value)
-#define BACKWARD_SWITCH_PRESSED (digitalRead(6) == LOW)
+#define BACKWARD_SWITCH_PRESSED (digitalRead(6) == HIGH)
 #define BACKWARD_DIR(value) -(value)
 
 // Output ====================================================================
 
-const int DIRECTION_PIN = 7;
 #define NEGATIVE_DIR LOW
 #define POSITIVE_DIR HIGH
+
+// MCP4725 -------------------------------------------------------------------
+#if DRIVER == MCP4725
+
+const int DIRECTION_PIN = 7;
 
 // Copied from one of the official examples:
 // For Adafruit MCP4725A1 the address is 0x62 (default) or 0x63 (ADDR pin tied to VCC)
@@ -36,6 +53,27 @@ const int MCP4725_ADDRESS = 0x62;
 
 // Max Value to Pass to the DAC
 const int MCP4725_MAX = 4095;
+
+// L298N ---------------------------------------------------------------------
+#else
+
+const int DIR_1_PIN = 13;
+const int DIR_2_PIN = 12;
+
+const int SPEED_PIN = 10;
+const int L298N_MAX = 255;
+#endif
+
+// Output Pins ---------------------------------------------------------------
+const int output_pins[] = {
+#if DRIVER == MCP4725
+    DIRECTION_PIN
+#else // L298N
+    DIR_1_PIN,
+    DIR_2_PIN,
+    SPEED_PIN
+#endif
+};
 
 // Other Constants ===========================================================
 
@@ -64,10 +102,12 @@ int current_speed = 0;
  */
 int target_speed = 0;
 
+#if DRIVER == MCP4725
 /*
  * DAC Driver Object
  */
 Adafruit_MCP4725 dac1;
+#endif
 
 #if LOG == 1
 // Switch Update States (For Debug Logging Only)
@@ -78,9 +118,15 @@ bool backward_printed = false;
 // Functions =================================================================
 
 void setup() {
+#if DRIVER == MCP4725
     dac1.begin(MCP4725_ADDRESS);
+#endif
 
-    pinMode(DIRECTION_PIN, OUTPUT);
+    // Set Output Pins
+    int output_pin_count = sizeof(output_pins) / sizeof(output_pins[0]);
+    for (int i = 0; i < output_pin_count; i++) {
+        pinMode(output_pins[i], OUTPUT);
+    }
 
 #if LOG == 1
     // Set up Serial Output
@@ -149,16 +195,32 @@ void loop() {
         LOG_SPEED;
     }
 
-    // Update Output
+    // Update Direction
     int abs_speed = 0;
     if (current_speed > 0) {
         abs_speed = current_speed;
+#if DRIVER == MCP4725
         digitalWrite(DIRECTION_PIN, POSITIVE_DIR);
+#else // L298N
+        digitalWrite(DIR_1_PIN, POSITIVE_DIR);
+        digitalWrite(DIR_2_PIN, NEGATIVE_DIR);
+#endif
     } else if (current_speed < 0) {
         abs_speed = -current_speed;
+#if DRIVER == MCP4725
         digitalWrite(DIRECTION_PIN, NEGATIVE_DIR);
+#else // L298N
+        digitalWrite(DIR_1_PIN, NEGATIVE_DIR);
+        digitalWrite(DIR_2_PIN, POSITIVE_DIR);
+#endif
     }
+
+    // Update Speed
+#if DRIVER == MCP4725
     dac1.setVoltage(MCP4725_MAX * abs_speed / 100, false);
+#else // L298N
+    analogWrite(SPEED_PIN, L298N_MAX * abs_speed / 100);
+#endif
 
     // Sleep for a While
     delay(TICK);
