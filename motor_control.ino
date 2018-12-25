@@ -111,8 +111,8 @@ Adafruit_MCP4725 dac1;
 
 #if LOG == 1
 // Switch Update States (For Debug Logging Only)
-bool forward_printed = false;
-bool backward_printed = false;
+bool forward_printed = true;
+bool backward_printed = true;
 #endif
 
 // Functions =================================================================
@@ -147,7 +147,7 @@ void loop() {
         target_speed = FORWARD_DIR(100);
         speed_step = ACCELERATE_STEP;
 #if LOG == 1
-        // Print FORWARD if not done already
+        // Print FORWARD PRESSED if not done already
         if (!forward_printed) {
             Serial.println("FORWARD PRESSED");
             forward_printed = true;
@@ -158,7 +158,7 @@ void loop() {
         target_speed = BACKWARD_DIR(100);
         speed_step = ACCELERATE_STEP;
 #if LOG == 1
-        // Print FORWARD if not done already
+        // Print BACKWARD PRESSED if not done already
         if (!backward_printed) {
             Serial.println("BACKWARD PRESSED");
             forward_printed = false;
@@ -171,7 +171,7 @@ void loop() {
         target_speed = 0;
         speed_step = DECELERATE_STEP;
 #if LOG == 1
-        // Print FORWARD if not done already
+        // Print OFF if not done already
         if (forward_printed || backward_printed) {
             Serial.println("OFF");
             forward_printed = false;
