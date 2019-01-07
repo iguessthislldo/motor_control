@@ -1,5 +1,3 @@
-// Macros ====================================================================
-
 /*
  * Serial Logging Control
  * Should be disabled when this is uploaded for the last time
@@ -10,7 +8,10 @@
 
 #if LOG == 1
 #define LOG_SPEED \
-    Serial.print("SPEED: "); Serial.print(current_speed); Serial.println('%');
+    Serial.print("SPEED: "); \
+    Serial.print(current_speed); \
+    Serial.print('/'); \
+    Serial.println(DENOMINATOR);
 #else
 #define LOG_SPEED // Nothing
 #endif
@@ -34,6 +35,9 @@
 #define FORWARD_DIR(value) (value)
 #define BACKWARD_SWITCH_PRESSED (digitalRead(6) == HIGH)
 #define BACKWARD_DIR(value) -(value)
+
+#define POT1 analogRead(0)
+const int POT1_MAX = 1023;
 
 // Output ====================================================================
 
@@ -77,13 +81,15 @@ const int output_pins[] = {
 
 // Other Constants ===========================================================
 
-// If a button is being pressed, this is how much it will change between loop()
-// iterations as a percent
-const int ACCELERATE_STEP = 5;
+// If a button is being pressed, this is how much speed increase will change
+// between loop() iterations as a percent
+const int ACCELERATE_STEP = 3;
 
-// If no button is pressed, this is how much it will change between loop()
-// iterations as a percent decelerate
-const int DECELERATE_STEP = 20;
+/*
+ * The common denominator for speed. 100 means the speed is a percentage of the
+ * max speed.
+ */
+const long DENOMINATOR = 100;
 
 // Number of milliseconds to wait between loop() iterations
 const int TICK = 100;
@@ -91,14 +97,20 @@ const int TICK = 100;
 // Global Variables ==========================================================
 
 /*
+ * Max Speed of the Motor as a Percent
+ * Goes from 0 to DENOMINATOR
+ */
+int max_speed = 0;
+
+/*
  * Current Speed of the Motor as a Percent
- * Goes from -100 to 100
+ * Goes from -DENOMINATOR to DENOMINATOR
  */
 int current_speed = 0;
 
 /*
  * Target Speed of the Motor as a Percent
- * Goes from -100 to 100
+ * Goes from -DENOMINATOR to DENOMINATOR
  */
 int target_speed = 0;
 
@@ -109,10 +121,14 @@ int target_speed = 0;
 Adafruit_MCP4725 dac1;
 #endif
 
+// Variables Used For Debug Logging Only
 #if LOG == 1
-// Switch Update States (For Debug Logging Only)
+// Switch Update States
 bool forward_printed = true;
 bool backward_printed = true;
+
+// Max Speed Update State
+int last_max_speed = 0;
 #endif
 
 // Functions =================================================================
@@ -139,12 +155,24 @@ void setup() {
 
 void loop() {
 
+    // Update Max Speed
+    max_speed = ((long) POT1) * DENOMINATOR / POT1_MAX;
+#if LOG == 1
+    if (abs(max_speed - last_max_speed)) {
+        Serial.print("MAX: ");
+        Serial.print(max_speed);
+        Serial.print('/');
+        Serial.println(DENOMINATOR);
+        last_max_speed = max_speed;
+    }
+#endif
+
     // Update Target Speed By Checking Switches
     int speed_step;
     bool forward = FORWARD_SWITCH_PRESSED;
     bool backward = BACKWARD_SWITCH_PRESSED;
     if (forward && !backward) {
-        target_speed = FORWARD_DIR(100);
+        target_speed = FORWARD_DIR(max_speed);
         speed_step = ACCELERATE_STEP;
 #if LOG == 1
         // Print FORWARD PRESSED if not done already
@@ -155,7 +183,7 @@ void loop() {
         }
 #endif
     } else if (backward && !forward) {
-        target_speed = BACKWARD_DIR(100);
+        target_speed = BACKWARD_DIR(max_speed);
         speed_step = ACCELERATE_STEP;
 #if LOG == 1
         // Print BACKWARD PRESSED if not done already
@@ -169,7 +197,7 @@ void loop() {
         // Neither Button is being pressed or both are being pressed, so we shouldn't
         // do anything.
         target_speed = 0;
-        speed_step = DECELERATE_STEP;
+        current_speed = 0;
 #if LOG == 1
         // Print OFF if not done already
         if (forward_printed || backward_printed) {
@@ -217,9 +245,9 @@ void loop() {
 
     // Update Speed
 #if DRIVER == MCP4725
-    dac1.setVoltage(MCP4725_MAX * abs_speed / 100, false);
+    dac1.setVoltage(((long) MCP4725_MAX) * abs_speed / DENOMINATOR, false);
 #else // L298N
-    analogWrite(SPEED_PIN, L298N_MAX * abs_speed / 100);
+    analogWrite(SPEED_PIN, ((long) L298N_MAX) * abs_speed / DENOMINATOR);
 #endif
 
     // Sleep for a While
