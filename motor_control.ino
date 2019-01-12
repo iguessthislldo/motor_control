@@ -22,7 +22,7 @@
 #define L298N 0
 #define MCP4725 1
 #define DRIVER MCP4725
-//#define DRIVER L298N
+// #define DRIVER L298N
 
 #if DRIVER == MCP4725
 #include <Wire.h>
@@ -31,12 +31,12 @@
 
 // Input =====================================================================
 
-#define FORWARD_SWITCH_PRESSED (digitalRead(5) == HIGH)
+#define FORWARD_SWITCH_PRESSED (digitalRead(8) == HIGH)
 #define FORWARD_DIR(value) (value)
-#define BACKWARD_SWITCH_PRESSED (digitalRead(6) == HIGH)
+#define BACKWARD_SWITCH_PRESSED (digitalRead(9) == HIGH)
 #define BACKWARD_DIR(value) -(value)
 
-#define POT1 analogRead(0)
+#define POT1 analogRead(10)
 const int POT1_MAX = 1023;
 
 // Output ====================================================================
@@ -47,7 +47,7 @@ const int POT1_MAX = 1023;
 // MCP4725 -------------------------------------------------------------------
 #if DRIVER == MCP4725
 
-const int DIRECTION_PIN = 7;
+const int DIRECTION_PIN = 3;
 
 // Copied from one of the official examples:
 // For Adafruit MCP4725A1 the address is 0x62 (default) or 0x63 (ADDR pin tied to VCC)
