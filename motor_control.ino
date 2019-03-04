@@ -358,7 +358,7 @@ void loop() {
             return;
         } else {
             set_speed(0.0);
-            set_direction(true); // Do this just to make sure the relay isn't on all the time.
+            set_direction(false); // Do this just to make sure the relay isn't on all the time.
             current_speed = 0.0;
             state = (state & ~decelerate_attr) | timeout_attr;
             opposite_dir_tick_count = 0;
